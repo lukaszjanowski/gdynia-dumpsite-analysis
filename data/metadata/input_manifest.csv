@@ -1,0 +1,11 @@
+key,required,configured_path,description
+dem2011,yes,data/raw/DEM_2011.tif,2011 bathymetric DEM
+dem2019,yes,data/raw/DEM_2019.tif,2019 bathymetric DEM
+dem2023,yes,data/raw/DEM_2023.tif,August-December 2023 bathymetric DEM
+dumpsite,yes,data/raw/DUMPSITE_VECTOR.gpkg,Official disposal-site boundary
+stable,yes,data/raw/STABLE_VECTOR.gpkg,Stable seabed used for co-registration
+plb220005,no,data/raw/PLB220005.gpkg,Natura 2000 regional context
+coastline,no,data/raw/coastline.gpkg,Coastline for Figure 1
+bbs2023,no,data/raw/BBS_2023.tif,Interpretive backscatter
+sss2011,no,data/raw/SSS_2011.tif,Interpretive side-scan sonar
+sss2019,no,data/raw/SSS_2019.tif,Interpretive side-scan sonar

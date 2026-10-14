@@ -1,0 +1,37 @@
+project:
+  name: "Gdynia dredged-material disposal site"
+  version: "2.0.0"
+  analysis_crs: "EPSG:2180"
+  display_crs: "EPSG:4326"
+files:
+  dem2011: "data/raw/DEM_2011.tif"
+  dem2019: "data/raw/DEM_2019.tif"
+  dem2023: "data/raw/DEM_2023.tif"
+  dumpsite: "data/raw/DUMPSITE_VECTOR.gpkg"
+  stable: "data/raw/STABLE_VECTOR.gpkg"
+  plb220005: "data/raw/PLB220005.gpkg"
+  plh220032: "data/raw/PLH220032.gpkg"
+  landscape_park: "data/raw/Nadmorski_Park_Krajobrazowy.gpkg"
+  coastline: "data/raw/coastline.gpkg"
+  bbs2023: "data/raw/BBS_2023.tif"
+  sss2011: "data/raw/SSS_2011.tif"
+  sss2019: "data/raw/SSS_2019.tif"
+analysis:
+  target_resolution_m: 1
+  apply_vertical_coregistration: true
+  max_vertical_shift_m: 2
+  minimum_stable_cells: 1000
+  lod_values_m: [0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
+  primary_lod_m: 0.20
+  positive_thresholds_m: [0.20, 0.25, 0.30, 0.35, 0.40]
+  primary_positive_threshold_m: 0.35
+  min_patch_areas_m2: [0, 100, 500, 1000]
+  primary_min_patch_area_m2: 500
+  large_patch_area_m2: 1000
+  connectivity_directions: 8
+  external_zone_m: 200
+figures:
+  png_dpi: 300
+  tiff_dpi: 600
+  dod_minimum_limit_m: 3
+  dod_robust_quantile: 0.995

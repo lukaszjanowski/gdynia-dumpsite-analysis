@@ -1,0 +1,524 @@
+# ==============================================================================
+# 06c_polished_final_figures_v4.R
+# Publication-ready figures for the Gdynia dumpsite geomorphic-change study
+# ==============================================================================
+
+source("00_config.R", encoding = "UTF-8")
+
+# Compatibility with different versions of 00_config.R.
+# The current project configuration stores paths primarily in the named DIRS vector.
+get_dir_value <- function(key) {
+  if (!exists("DIRS", inherits = TRUE)) return(NA_character_)
+  d <- get("DIRS", inherits = TRUE)
+  if (is.null(names(d)) || !key %in% names(d)) return(NA_character_)
+  value <- unname(d[[key]])
+  if (length(value) != 1L || is.na(value) || !nzchar(value)) return(NA_character_)
+  normalizePath(value, winslash = "/", mustWork = FALSE)
+}
+
+config_tables <- get_dir_value("tables")
+config_rasters <- get_dir_value("rasters")
+config_vectors <- get_dir_value("vectors")
+config_figures <- get_dir_value("figures")
+config_output <- get_dir_value("output")
+config_root <- get_dir_value("root")
+
+# Derive OUTPUT_DIR from explicit variables first, then from DIRS entries.
+if (!exists("OUTPUT_DIR", inherits = TRUE)) {
+  if (!is.na(config_output)) {
+    OUTPUT_DIR <- config_output
+  } else if (!is.na(config_tables)) {
+    OUTPUT_DIR <- dirname(config_tables)
+  } else if (!is.na(config_rasters)) {
+    OUTPUT_DIR <- dirname(config_rasters)
+  } else if (!is.na(config_figures)) {
+    OUTPUT_DIR <- dirname(config_figures)
+  } else {
+    stop("Unable to derive OUTPUT_DIR from 00_config.R. Available DIRS names: ",
+         if (exists("DIRS", inherits = TRUE)) paste(names(get("DIRS", inherits = TRUE)), collapse = ", ") else "DIRS not defined")
+  }
+}
+OUTPUT_DIR <- normalizePath(OUTPUT_DIR, winslash = "/", mustWork = FALSE)
+
+# Derive PROJECT_ROOT without requiring a particular variable name.
+if (!exists("PROJECT_ROOT", inherits = TRUE)) {
+  root_candidates <- c(
+    if (exists("ROOT_DIR", inherits = TRUE)) get("ROOT_DIR", inherits = TRUE) else NA_character_,
+    if (exists("PROJECT_DIR", inherits = TRUE)) get("PROJECT_DIR", inherits = TRUE) else NA_character_,
+    config_root,
+    dirname(OUTPUT_DIR)
+  )
+  root_candidates <- root_candidates[!is.na(root_candidates) & nzchar(root_candidates)]
+  if (length(root_candidates) == 0L) stop("Unable to derive PROJECT_ROOT from 00_config.R.")
+  PROJECT_ROOT <- root_candidates[1]
+}
+PROJECT_ROOT <- normalizePath(PROJECT_ROOT, winslash = "/", mustWork = FALSE)
+
+# ---- Packages ----------------------------------------------------------------
+required_packages <- c("terra", "sf", "data.table", "ggplot2", "scales", "patchwork")
+missing_packages <- required_packages[!vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing_packages) > 0) {
+  stop("Install the following packages before running step 06c: ",
+       paste(missing_packages, collapse = ", "))
+}
+
+library(terra)
+library(sf)
+library(data.table)
+library(ggplot2)
+library(scales)
+library(patchwork)
+
+message("")
+message("Step 06c: polished final figures")
+message("Project root: ", PROJECT_ROOT)
+message("Output directory: ", OUTPUT_DIR)
+
+# ---- Settings ----------------------------------------------------------------
+FIG_DIR <- file.path(if (!is.na(config_figures)) config_figures else file.path(OUTPUT_DIR, "figures"), "final")
+dir.create(FIG_DIR, recursive = TRUE, showWarnings = FALSE)
+
+DPI_PRINT <- 600
+DPI_SCREEN <- 300
+BASE_SIZE <- 9
+FONT_FAMILY <- "sans"
+PRIMARY_THRESHOLD <- 0.35
+PRIMARY_MIN_AREA <- 500
+
+# Survey labels used in the current analysis. Change here only if the manuscript
+# ultimately reports the acquisition year as 2023 rather than 2023.
+YEAR_EARLY <- "2011"
+YEAR_MIDDLE <- "2019"
+YEAR_LATE <- "2023"
+
+# ---- Helpers -----------------------------------------------------------------
+first_existing <- function(paths, label, required = TRUE) {
+  hit <- paths[file.exists(paths)]
+  if (length(hit) == 0) {
+    if (required) {
+      stop(label, " not found. Checked:\n", paste(" -", paths, collapse = "\n"))
+    }
+    warning(label, " not found; the related panel will be skipped.")
+    return(NA_character_)
+  }
+  normalizePath(hit[1], winslash = "/", mustWork = TRUE)
+}
+
+find_one <- function(directory, patterns, label, required = TRUE) {
+  all_files <- list.files(directory, recursive = TRUE, full.names = TRUE)
+  keep <- rep(TRUE, length(all_files))
+  for (p in patterns) keep <- keep & grepl(p, basename(all_files), ignore.case = TRUE)
+  hits <- all_files[keep]
+  if (length(hits) == 0) {
+    if (required) stop(label, " not found under: ", directory)
+    warning(label, " not found; related output will be skipped.")
+    return(NA_character_)
+  }
+  normalizePath(hits[1], winslash = "/", mustWork = TRUE)
+}
+
+read_csv_checked <- function(path, required_cols = character()) {
+  x <- data.table::fread(path)
+  absent <- setdiff(required_cols, names(x))
+  if (length(absent) > 0) {
+    stop("Missing columns in ", basename(path), ": ", paste(absent, collapse = ", "))
+  }
+  x
+}
+
+save_figure <- function(plot, stem, width_mm, height_mm, also_pdf = TRUE) {
+  png_file <- file.path(FIG_DIR, paste0(stem, ".png"))
+  tif_file <- file.path(FIG_DIR, paste0(stem, ".tif"))
+  ggsave(png_file, plot, width = width_mm, height = height_mm, units = "mm",
+         dpi = DPI_SCREEN, bg = "white")
+  ggsave(tif_file, plot, width = width_mm, height = height_mm, units = "mm",
+         dpi = DPI_PRINT, compression = "lzw", bg = "white")
+  if (also_pdf) {
+    ggsave(file.path(FIG_DIR, paste0(stem, ".pdf")), plot,
+           width = width_mm, height = height_mm, units = "mm",
+           device = cairo_pdf, bg = "white")
+  }
+  message("Saved: ", stem)
+}
+
+publication_theme <- function() {
+  theme_minimal(base_size = BASE_SIZE, base_family = FONT_FAMILY) +
+    theme(
+      text = element_text(colour = "#1A1A1A"),
+      plot.title = element_text(face = "bold", size = 10.5, margin = margin(b = 5)),
+      plot.subtitle = element_text(size = 8.5, colour = "#444444", margin = margin(b = 7)),
+      plot.caption = element_text(size = 7, colour = "#555555", hjust = 0),
+      axis.title = element_text(size = 8.5),
+      axis.text = element_text(size = 7.5, colour = "#333333"),
+      legend.title = element_text(size = 8, face = "bold"),
+      legend.text = element_text(size = 7.5),
+      legend.key.height = unit(4, "mm"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(linewidth = 0.25, colour = "#E6E6E6"),
+      strip.text = element_text(face = "bold", size = 8.5),
+      strip.background = element_rect(fill = "#F1F1F1", colour = NA),
+      plot.margin = margin(5, 6, 5, 5)
+    )
+}
+
+theme_set(publication_theme())
+
+zone_labels <- c(
+  inside_official_dumpsite = "Inside official dumpsite",
+  outside_0_200m = "0–200 m outside",
+  outside_gt_200m = ">200 m outside"
+)
+zone_colours <- c(
+  inside_official_dumpsite = "#2166AC",
+  outside_0_200m = "#D6604D",
+  outside_gt_200m = "#7F7F7F"
+)
+
+# ---- Locate source data -------------------------------------------------------
+table_dir <- if (!is.na(config_tables)) config_tables else file.path(OUTPUT_DIR, "tables")
+raster_dir <- if (!is.na(config_rasters)) config_rasters else file.path(OUTPUT_DIR, "rasters")
+vector_dir <- if (!is.na(config_vectors)) config_vectors else file.path(OUTPUT_DIR, "vectors")
+
+primary_file <- first_existing(c(
+  file.path(table_dir, "boundary_primary_exact_summary.csv"),
+  file.path(table_dir, "patch_zone_exact_summary_2019_2023.csv")
+), "Primary exact boundary summary")
+
+sensitivity_file <- first_existing(c(
+  file.path(table_dir, "boundary_sensitivity_zone_summary.csv")
+), "Boundary sensitivity summary")
+
+coverage_file <- first_existing(c(
+  file.path(table_dir, "boundary_patch_filter_coverage.csv")
+), "Patch-filter coverage summary")
+
+crossing_file <- first_existing(c(
+  file.path(table_dir, "boundary_crossing_patches_exact_2019_2023.csv"),
+  file.path(table_dir, "boundary_crossing_patch_details.csv"),
+  file.path(table_dir, "boundary_crossing_details_2019_2023.csv"),
+  file.path(table_dir, "patch_zone_parts_2019_2023.csv")
+), "Boundary-crossing patch details", required = FALSE)
+
+volume_file <- first_existing(c(
+  file.path(table_dir, "dod_volume_summary_all_lod.csv")
+), "DoD volume summary", required = FALSE)
+
+# Prefer explicitly named outputs, then use constrained search.
+dod_file <- first_existing(c(
+  file.path(raster_dir, "DoD_2019_2023_raw.tif"),
+  file.path(raster_dir, "DoD_2019_2023.tif"),
+  file.path(raster_dir, "dod_2019_2023.tif"),
+  file.path(raster_dir, "Gdynia_DoD_2019_2023.tif")
+), "2019–2023 DoD raster", required = FALSE)
+if (is.na(dod_file)) dod_file <- find_one(OUTPUT_DIR, c("dod", "2019", "2023", "\\.tif$"), "2019–2023 DoD raster", FALSE)
+
+patch_vector_file <- first_existing(c(
+  file.path(vector_dir, "depositional_patches_2019_2023.gpkg"),
+  file.path(vector_dir, "depositional_patch_zone_parts_2019_2023.gpkg")
+), "Depositional patch vector", required = FALSE)
+
+boundary_candidates <- file.path(PROJECT_ROOT, "SHP", "DUMPSITE_VECTOR.shp")
+if (exists("DUMPSITE_VECTOR", inherits = TRUE)) {
+  boundary_candidates <- c(get("DUMPSITE_VECTOR", inherits = TRUE), boundary_candidates)
+}
+boundary_file <- first_existing(boundary_candidates, "Dumpsite boundary")
+
+# ---- Read tables --------------------------------------------------------------
+primary <- data.table::fread(
+  primary_file
+)
+
+rename_first_match <- function(
+  x,
+  target,
+  candidates
+) {
+  if (target %in% names(x)) {
+    return(x)
+  }
+
+  found <- candidates[
+    candidates %in% names(x)
+  ]
+
+  if (!length(found)) {
+    stop(
+      "Missing required conceptual column '",
+      target,
+      "' in ",
+      basename(primary_file),
+      ". Available columns: ",
+      paste(names(x), collapse = ", ")
+    )
+  }
+
+  data.table::setnames(
+    x,
+    found[1],
+    target
+  )
+
+  x
+}
+
+primary <- rename_first_match(
+  primary,
+  "area_m2",
+  c(
+    "retained_area_m2",
+    "scenario_area_m2",
+    "zone_area_m2",
+    "depositional_area_m2",
+    "positive_area_m2"
+  )
+)
+
+primary <- rename_first_match(
+  primary,
+  "positive_volume_m3",
+  c(
+    "retained_positive_volume_m3",
+    "scenario_volume_m3",
+    "zone_positive_volume_m3",
+    "depositional_volume_m3",
+    "volume_m3"
+  )
+)
+
+required_primary_columns <- c(
+  "zone",
+  "area_m2",
+  "positive_volume_m3"
+)
+
+missing_primary_columns <- setdiff(
+  required_primary_columns,
+  names(primary)
+)
+
+if (length(missing_primary_columns)) {
+  stop(
+    "Missing columns after normalization: ",
+    paste(missing_primary_columns, collapse = ", ")
+  )
+}
+sensitivity <- read_csv_checked(sensitivity_file,
+  c("zone", "threshold_m", "min_patch_area_m2", "positive_volume_m3"))
+coverage <- read_csv_checked(coverage_file)
+if (!is.na(crossing_file)) crossing <- fread(crossing_file)
+if (!is.na(volume_file)) volumes <- fread(volume_file)
+
+primary[, zone_label := factor(zone_labels[zone], levels = unname(zone_labels))]
+primary[, area_km2 := area_m2 / 1e6]
+primary[, volume_Mm3 := positive_volume_m3 / 1e6]
+
+# Robust percentage calculation if not already supplied.
+if (!"pct_total_area" %in% names(primary))
+  primary[, pct_total_area := 100 * area_m2 / sum(area_m2)]
+if (!"pct_total_positive_volume" %in% names(primary))
+  primary[, pct_total_positive_volume := 100 * positive_volume_m3 / sum(positive_volume_m3)]
+
+# ---- Figure 1: exact boundary accounting ------------------------------------
+long_primary <- rbindlist(list(
+  primary[, .(zone, zone_label, metric = "Depositional area", value = area_km2,
+              label = sprintf("%.3f km²\n(%.2f%%)", area_km2, pct_total_area))],
+  primary[, .(zone, zone_label, metric = "Positive volume", value = volume_Mm3,
+              label = sprintf("%.3f million m³\n(%.2f%%)", volume_Mm3, pct_total_positive_volume))]
+))
+
+p_exact <- ggplot(long_primary, aes(zone_label, value, fill = zone)) +
+  geom_col(width = 0.66) +
+  geom_text(aes(label = label), vjust = -0.35, size = 2.7, lineheight = 0.93) +
+  facet_wrap(~metric, scales = "free_y", nrow = 1) +
+  scale_fill_manual(values = zone_colours, guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(
+    title = "Spatial concentration of distinct depositional fields",
+    subtitle = sprintf("DoD > %.2f m; minimum patch area = %s m²", PRIMARY_THRESHOLD,
+                       format(PRIMARY_MIN_AREA, big.mark = ",", scientific = FALSE)),
+    x = NULL, y = NULL,
+    caption = "Area and volume were assigned cell by cell relative to the official dumpsite boundary."
+  ) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5), panel.grid.major.x = element_blank())
+
+save_figure(p_exact, "Figure_06c_1_exact_boundary_accounting", 180, 90)
+
+# ---- Figure 2: threshold sensitivity -----------------------------------------
+sensitivity[, zone_label := factor(zone_labels[zone], levels = unname(zone_labels))]
+sensitivity[, scenario_total := sum(positive_volume_m3), by = .(threshold_m, min_patch_area_m2)]
+sensitivity[, pct_volume := 100 * positive_volume_m3 / scenario_total]
+
+# Exclude >200 m from the principal line graph if present only as tiny values;
+# retain it in the supplied CSV and supplementary heatmap.
+plot_sens <- sensitivity[zone %in% c("inside_official_dumpsite", "outside_0_200m")]
+plot_sens[, min_area_label := factor(
+  paste0(format(min_patch_area_m2, big.mark = ",", scientific = FALSE), " m²"),
+  levels = paste0(format(sort(unique(min_patch_area_m2)), big.mark = ",", scientific = FALSE), " m²")
+)]
+
+p_sens <- ggplot(plot_sens,
+                 aes(threshold_m, pct_volume, colour = zone, group = zone)) +
+  geom_line(linewidth = 0.72) +
+  geom_point(size = 1.65) +
+  facet_wrap(~min_area_label, nrow = 1) +
+  scale_colour_manual(values = zone_colours, labels = zone_labels, name = NULL) +
+  scale_x_continuous(breaks = sort(unique(plot_sens$threshold_m))) +
+  scale_y_continuous(labels = label_number(accuracy = 0.1), limits = c(0, 100)) +
+  labs(
+    title = "Sensitivity of depositional-volume allocation",
+    subtitle = "Results remain dominated by deposition inside the official boundary",
+    x = "Positive DoD threshold (m)", y = "Share of scenario volume (%)",
+    caption = "Facets show alternative minimum patch-area filters."
+  ) +
+  theme(legend.position = "bottom")
+
+save_figure(p_sens, "Figure_06c_2_boundary_sensitivity", 190, 92)
+
+# ---- Figure 3: retention by patch filter -------------------------------------
+# Adapt to either long or wide form.
+coverage_long <- copy(coverage)
+if (all(c("zone", "threshold_m", "min_patch_area_m2") %in% names(coverage_long))) {
+  value_col <- intersect(c("pct_volume_retained", "volume_retained_pct", "pct_retained_volume",
+                           "pct_all_positive_volume_retained"), names(coverage_long))
+  if (length(value_col) > 0) {
+    setnames(coverage_long, value_col[1], "retained_pct")
+    coverage_long[, zone_label := factor(zone_labels[zone], levels = unname(zone_labels))]
+    p_coverage <- ggplot(coverage_long, aes(min_patch_area_m2, retained_pct,
+                                           colour = zone, group = zone)) +
+      geom_line(linewidth = 0.72) + geom_point(size = 1.6) +
+      facet_wrap(~threshold_m, labeller = label_both) +
+      scale_colour_manual(values = zone_colours, labels = zone_labels, name = NULL) +
+      scale_y_continuous(labels = label_number(suffix = "%", accuracy = 0.1), limits = c(0, 100)) +
+      labs(title = "Positive-volume retention after patch filtering",
+           x = "Minimum patch area (m²)", y = "Retained positive volume") +
+      theme(legend.position = "bottom")
+    save_figure(p_coverage, "Figure_06c_S1_patch_filter_coverage", 180, 120)
+  } else {
+    warning("Coverage table recognised, but no retained-volume percentage column was found.")
+  }
+}
+
+# ---- Figure 4: DoD and depositional patches map -------------------------------
+if (!is.na(dod_file) && !is.na(patch_vector_file)) {
+  dod <- rast(dod_file)
+  boundary <- st_read(boundary_file, quiet = TRUE)
+  patches <- st_read(patch_vector_file, quiet = TRUE)
+
+  boundary <- st_transform(boundary, crs(dod))
+  patches <- st_transform(patches, crs(dod))
+
+  # Downsample only for plotting; all statistics remain based on full-resolution data.
+  max_plot_cells <- 1500000
+  factor_plot <- max(1, ceiling(sqrt(ncell(dod) / max_plot_cells)))
+  dod_plot <- if (factor_plot > 1) aggregate(dod, fact = factor_plot, fun = mean,
+                                             na.rm = TRUE) else dod
+  dod_df <- as.data.frame(dod_plot, xy = TRUE, na.rm = TRUE)
+  names(dod_df)[3] <- "dod_m"
+
+  # Symmetric visual limits based on robust quantiles, capped for readable contrast.
+  lim <- as.numeric(quantile(abs(dod_df$dod_m), 0.995, na.rm = TRUE))
+  lim <- min(max(lim, 0.5), 3.0)
+
+  p_map <- ggplot() +
+    geom_raster(data = dod_df, aes(x, y, fill = dod_m)) +
+    geom_sf(data = patches, fill = NA, colour = "#FFCC00", linewidth = 0.28,
+            inherit.aes = FALSE) +
+    geom_sf(data = boundary, fill = NA, colour = "black", linewidth = 0.55,
+            inherit.aes = FALSE) +
+    scale_fill_gradient2(
+      low = "#2166AC", mid = "#F7F7F7", high = "#B2182B", midpoint = 0,
+      limits = c(-lim, lim), oob = squish, name = "DoD (m)"
+    ) +
+    coord_sf(expand = FALSE) +
+    labs(
+      title = paste0("Bathymetric change, ", YEAR_MIDDLE, "–", YEAR_LATE),
+      subtitle = sprintf("Yellow outlines: depositional patches (DoD > %.2f m; ≥ %s m²)",
+                         PRIMARY_THRESHOLD, format(PRIMARY_MIN_AREA, big.mark = ",")),
+      x = "Easting (m)", y = "Northing (m)",
+      caption = "Black line: official dumpsite boundary. Raster was aggregated only for figure rendering."
+    ) +
+    theme(panel.grid = element_blank(), legend.position = "right")
+
+  save_figure(p_map, "Figure_06c_3_DoD_and_depositional_fields", 180, 150)
+} else {
+  warning("Map figure skipped because a DoD raster or patch vector was not found.")
+}
+
+# ---- Figure 5: crossing-patch composition ------------------------------------
+if (exists("crossing") && all(c("patch_id", "zone", "positive_volume_m3") %in% names(crossing))) {
+  cross <- crossing[zone %in% names(zone_labels)]
+  cross[, zone_label := factor(zone_labels[zone], levels = unname(zone_labels))]
+  cross[, patch_label := paste("Patch", patch_id)]
+  cross[, patch_total := sum(positive_volume_m3), by = patch_id]
+  cross[, pct_patch_volume := 100 * positive_volume_m3 / patch_total]
+
+  p_cross <- ggplot(cross, aes(patch_label, pct_patch_volume, fill = zone)) +
+    geom_col(width = 0.62) +
+    geom_text(aes(label = ifelse(pct_patch_volume >= 3,
+                                 sprintf("%.1f%%", pct_patch_volume), "")),
+              position = position_stack(vjust = 0.5), size = 2.8, colour = "white") +
+    scale_fill_manual(values = zone_colours, labels = zone_labels, name = NULL) +
+    scale_y_continuous(labels = label_percent(scale = 1), expand = c(0, 0)) +
+    labs(title = "Volume partitioning of boundary-crossing patches",
+         x = NULL, y = "Share of patch positive volume") +
+    theme(legend.position = "bottom", panel.grid.major.x = element_blank())
+
+  save_figure(p_cross, "Figure_06c_4_boundary_crossing_patches", 120, 100)
+}
+
+# ---- Optional Figure 6: LoD volume robustness --------------------------------
+if (exists("volumes") && all(c("pair", "zone", "lod_m", "net_volume_m3") %in% names(volumes))) {
+  volplot <- volumes[zone %in% c("inside_dumpsite", "outside_dumpsite")]
+  volplot[, zone_label := factor(
+    fifelse(zone == "inside_dumpsite", "Inside official dumpsite", "Outside official dumpsite"),
+    levels = c("Inside official dumpsite", "Outside official dumpsite")
+  )]
+  volplot[, net_volume_Mm3 := net_volume_m3 / 1e6]
+  volplot[, pair_label := gsub("_", "–", pair)]
+
+  p_lod <- ggplot(volplot, aes(lod_m, net_volume_Mm3, colour = zone_label)) +
+    geom_hline(yintercept = 0, linewidth = 0.35, colour = "#555555") +
+    geom_line(linewidth = 0.75) + geom_point(size = 1.6) +
+    facet_wrap(~pair_label, scales = "free_y") +
+    scale_colour_manual(values = c("Inside official dumpsite" = "#2166AC",
+                                   "Outside official dumpsite" = "#D6604D"), name = NULL) +
+    labs(title = "Sensitivity of net volume to the level of detection",
+         x = "LoD (m)", y = "Net volume (million m³)") +
+    theme(legend.position = "bottom")
+
+  save_figure(p_lod, "Figure_06c_S2_LoD_volume_sensitivity", 180, 105)
+}
+
+# ---- Combined main figure -----------------------------------------------------
+# A compact synthesis suitable for a main manuscript figure.
+combined <- p_exact / p_sens +
+  plot_annotation(tag_levels = "A", theme = theme(plot.tag = element_text(face = "bold", size = 11)))
+save_figure(combined, "Figure_06c_5_combined_quantitative_summary", 190, 175)
+
+# ---- Data export and reproducibility record ----------------------------------
+fwrite(primary, file.path(FIG_DIR, "figure_data_exact_boundary_accounting.csv"))
+fwrite(sensitivity, file.path(FIG_DIR, "figure_data_boundary_sensitivity.csv"))
+fwrite(coverage, file.path(FIG_DIR, "figure_data_patch_filter_coverage.csv"))
+
+record <- c(
+  paste0("Generated: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
+  paste0("Script: 06c_polished_final_figures_v4.R"),
+  paste0("Primary threshold: ", PRIMARY_THRESHOLD, " m"),
+  paste0("Primary minimum area: ", PRIMARY_MIN_AREA, " m2"),
+  paste0("Year labels: ", YEAR_EARLY, ", ", YEAR_MIDDLE, ", ", YEAR_LATE),
+  paste0("Primary table: ", primary_file),
+  paste0("Sensitivity table: ", sensitivity_file),
+  paste0("Coverage table: ", coverage_file),
+  paste0("DoD raster: ", ifelse(is.na(dod_file), "not found", dod_file)),
+  paste0("Patch vector: ", ifelse(is.na(patch_vector_file), "not found", patch_vector_file)),
+  paste0("R version: ", R.version.string),
+  paste0("terra: ", as.character(packageVersion("terra"))),
+  paste0("sf: ", as.character(packageVersion("sf"))),
+  paste0("ggplot2: ", as.character(packageVersion("ggplot2")))
+)
+writeLines(record, file.path(FIG_DIR, "step_06c_reproducibility_record.txt"))
+
+message("")
+message("Step 06c completed successfully.")
+message("Final figures: ", FIG_DIR)
+message("Review all PNG files before manuscript submission.")

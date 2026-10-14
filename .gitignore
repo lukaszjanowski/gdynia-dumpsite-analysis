@@ -1,0 +1,13 @@
+.Rproj.user/
+.Rhistory
+.RData
+renv/library/
+data/raw/*
+!data/raw/.gitkeep
+outputs/rasters/*
+!outputs/rasters/.gitkeep
+outputs/vectors/*
+!outputs/vectors/.gitkeep
+outputs/figures/*
+!outputs/figures/.gitkeep
+logs/*.log

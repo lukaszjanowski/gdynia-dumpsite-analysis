@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "Gdynia dumpsite MBES analysis"
+type: software
+version: 2.0.0
+year: 2026
+authors:
+  - family-names: Janowski
+    given-names: Lukasz
+message: "Please cite the associated article and this repository."

@@ -1,0 +1,150 @@
+# ==============================================================================
+# STEP 05 - Boundary crossing and sensitivity analysis
+# Gdynia disposal site, 2019-2024
+#
+# Uses exact raster-cell accounting. It does not assign a whole patch to its
+# majority zone. It repeats segmentation for several DoD thresholds and minimum
+# patch areas, then quantifies deposition inside, 0-200 m outside, and >200 m.
+# ============================================================================== 
+
+source("00_config.R", encoding="UTF-8")
+
+THRESHOLDS_M <- c(0.20, 0.25, 0.30, 0.35, 0.40)
+MIN_AREAS_M2 <- c(0, 100, 500, 1000)
+CONNECT_DIRECTIONS <- 8
+PRIMARY_THRESHOLD_M <- 0.35
+PRIMARY_MIN_AREA_M2 <- 500
+
+f_dod <- file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif")
+f_off <- DUMPSITE_VECTOR
+f_buf <- file.path(ROOT, "SHP", "DUMPSITE_VECTOR_buffer.shp")
+stopifnot(file.exists(f_dod), file.exists(f_off), file.exists(f_buf))
+
+dod <- terra::rast(f_dod)[[1]]
+names(dod) <- "dod_m"
+cell_area <- abs(prod(terra::res(dod)))
+
+read_poly <- function(f, target) {
+  v <- terra::vect(f)
+  if (is.na(terra::crs(v))) stop("Missing CRS: ", f)
+  if (!terra::same.crs(v, target)) v <- terra::project(v, terra::crs(target))
+  terra::aggregate(terra::makeValid(v))
+}
+official <- read_poly(f_off, dod)
+buffered <- read_poly(f_buf, dod)
+ring <- terra::makeValid(terra::erase(buffered, official))
+
+# Zone raster: 1 inside, 2 external 0-200 m ring, 3 farther outside.
+zone <- terra::ifel(!is.na(dod), 3, NA)
+zone <- terra::rasterize(ring, zone, field=2, background=zone, touches=TRUE, update=TRUE)
+zone <- terra::rasterize(official, zone, field=1, background=zone, touches=TRUE, update=TRUE)
+names(zone) <- "zone_code"
+zone_names <- c("1"="inside_official_dumpsite", "2"="outside_0_200m", "3"="outside_over_200m")
+
+freq_ids <- function(x) {
+  z <- data.table::as.data.table(terra::freq(x, digits=0))
+  if (!all(c("value","count") %in% names(z))) stop("Unexpected terra::freq columns: ", paste(names(z), collapse=", "))
+  z[, .(old_id=as.integer(value), cells=as.numeric(count))]
+}
+
+run_scenario <- function(threshold_m, min_area_m2) {
+  message("Scenario: threshold=", threshold_m, " m; min area=", min_area_m2, " m2")
+  pos <- terra::ifel(dod > threshold_m, 1, NA)
+  pid_raw <- terra::patches(pos, directions=CONNECT_DIRECTIONS, zeroAsNA=TRUE)
+  fr <- freq_ids(pid_raw)
+  fr[, area_m2 := cells * cell_area]
+  keep <- fr[area_m2 >= min_area_m2, old_id]
+  if (!length(keep)) return(NULL)
+  pid <- terra::ifel(pid_raw %in% keep, pid_raw, NA)
+  names(pid) <- "patch_id"
+
+  # Exact cell table. Values are at most the number of positive cells.
+  st <- c(pid, zone, dod); names(st) <- c("patch_id","zone_code","dod_m")
+  d <- data.table::as.data.table(terra::as.data.frame(st, na.rm=TRUE))
+  d <- d[is.finite(patch_id) & is.finite(zone_code) & is.finite(dod_m) & dod_m > threshold_m]
+  d[, patch_id := as.integer(patch_id)]
+  d[, zone := unname(zone_names[as.character(as.integer(zone_code))])]
+
+  by_zone <- d[, .(
+    patch_count=data.table::uniqueN(patch_id),
+    cell_count=.N,
+    area_m2=.N*cell_area,
+    positive_volume_m3=sum(dod_m*cell_area),
+    mean_thickness_m=mean(dod_m),
+    median_thickness_m=median(dod_m),
+    maximum_thickness_m=max(dod_m)
+  ), by=zone]
+  by_zone[, `:=`(threshold_m=threshold_m, min_patch_area_m2=min_area_m2)]
+
+  by_patch_zone <- d[, .(
+    cell_count=.N,
+    area_m2=.N*cell_area,
+    positive_volume_m3=sum(dod_m*cell_area),
+    mean_thickness_m=mean(dod_m),
+    median_thickness_m=median(dod_m),
+    maximum_thickness_m=max(dod_m)
+  ), by=.(patch_id,zone)]
+  by_patch_zone[, `:=`(threshold_m=threshold_m, min_patch_area_m2=min_area_m2)]
+
+  cross <- by_patch_zone[, .(zone_count=data.table::uniqueN(zone)), by=patch_id][zone_count>1, patch_id]
+  crossings <- by_patch_zone[patch_id %in% cross]
+  list(zone=by_zone, patch_zone=by_patch_zone, crossings=crossings,
+       raw_patch_count=nrow(fr), retained_patch_count=length(keep))
+}
+
+scenarios <- list(); k <- 0L
+for (th in THRESHOLDS_M) for (ma in MIN_AREAS_M2) {
+  k <- k+1L; scenarios[[k]] <- run_scenario(th, ma)
+}
+scenarios <- Filter(Negate(is.null), scenarios)
+zone_sensitivity <- data.table::rbindlist(lapply(scenarios, `[[`, "zone"), fill=TRUE)
+patch_zone_sensitivity <- data.table::rbindlist(lapply(scenarios, `[[`, "patch_zone"), fill=TRUE)
+crossing_sensitivity <- data.table::rbindlist(lapply(scenarios, `[[`, "crossings"), fill=TRUE)
+scenario_counts <- data.table::rbindlist(lapply(seq_along(scenarios), function(i) {
+  s <- scenarios[[i]]
+  z <- s$zone[1]
+  data.table(threshold_m=z$threshold_m, min_patch_area_m2=z$min_patch_area_m2,
+             raw_patch_count=s$raw_patch_count, retained_patch_count=s$retained_patch_count)
+}))
+
+zone_sensitivity[, pct_scenario_area := 100*area_m2/sum(area_m2), by=.(threshold_m,min_patch_area_m2)]
+zone_sensitivity[, pct_scenario_volume := 100*positive_volume_m3/sum(positive_volume_m3), by=.(threshold_m,min_patch_area_m2)]
+data.table::setorder(zone_sensitivity, threshold_m, min_patch_area_m2, zone)
+
+fwrite(zone_sensitivity, file.path(DIRS["tables"], "boundary_sensitivity_zone_summary.csv"))
+fwrite(patch_zone_sensitivity, file.path(DIRS["tables"], "boundary_sensitivity_patch_zone.csv"))
+fwrite(crossing_sensitivity, file.path(DIRS["tables"], "boundary_crossing_sensitivity.csv"))
+fwrite(scenario_counts, file.path(DIRS["tables"], "boundary_sensitivity_patch_counts.csv"))
+
+primary <- zone_sensitivity[threshold_m==PRIMARY_THRESHOLD_M & min_patch_area_m2==PRIMARY_MIN_AREA_M2]
+fwrite(primary, file.path(DIRS["tables"], "boundary_primary_exact_summary.csv"))
+
+# Comparison against all positive cells at each threshold (no area filter).
+coverage <- merge(
+  zone_sensitivity[min_patch_area_m2==PRIMARY_MIN_AREA_M2,
+                   .(threshold_m, zone, retained_area_m2=area_m2, retained_volume_m3=positive_volume_m3)],
+  zone_sensitivity[min_patch_area_m2==0,
+                   .(threshold_m, zone, all_area_m2=area_m2, all_volume_m3=positive_volume_m3)],
+  by=c("threshold_m","zone"), all=TRUE
+)
+coverage[, retained_area_pct := 100*retained_area_m2/all_area_m2]
+coverage[, retained_volume_pct := 100*retained_volume_m3/all_volume_m3]
+fwrite(coverage, file.path(DIRS["tables"], "boundary_patch_filter_coverage.csv"))
+
+# Sensitivity plots.
+p1 <- ggplot2::ggplot(zone_sensitivity[min_patch_area_m2==PRIMARY_MIN_AREA_M2],
+                      ggplot2::aes(threshold_m, positive_volume_m3/1e6, color=zone)) +
+  ggplot2::geom_line(linewidth=1) + ggplot2::geom_point(size=2) +
+  ggplot2::labs(x="DoD threshold (m)", y="Positive volume (million m3)", color="Zone") +
+  ggplot2::theme_bw()
+ggplot2::ggsave(file.path(DIRS["figures"], "boundary_threshold_sensitivity_volume.png"), p1, width=8, height=5, dpi=300)
+
+p2 <- ggplot2::ggplot(zone_sensitivity[threshold_m==PRIMARY_THRESHOLD_M],
+                      ggplot2::aes(factor(min_patch_area_m2), positive_volume_m3/1e6, fill=zone)) +
+  ggplot2::geom_col(position="dodge") +
+  ggplot2::labs(x="Minimum patch area (m2)", y="Positive volume (million m3)", fill="Zone") +
+  ggplot2::theme_bw()
+ggplot2::ggsave(file.path(DIRS["figures"], "boundary_min_area_sensitivity_volume.png"), p2, width=8, height=5, dpi=300)
+
+message("Step 05 completed successfully.")
+print(primary)
