@@ -1,6 +1,6 @@
 # ==============================================================================
 # 06g_figure4_dominant_depositional_fields_v2_legend_below.R
-# Figure 4: bathymetric change, 2019-2023, and two dominant depositional fields
+# Figure 4: bathymetric change, 2019-2024, and two dominant depositional fields
 # Main-text version: no labels or outlines for minor patches
 # ==============================================================================
 
@@ -25,18 +25,18 @@ first_existing <- function(paths, label) {
 
 dod_file <- first_existing(
   c(
-    file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif"),
-    file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif"),
-    file.path(OUTPUT_DIR, "rasters", "DoD_2019_2023_raw.tif")
+    file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif"),
+    file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif"),
+    file.path(OUTPUT_DIR, "rasters", "DoD_2019_2024_raw.tif")
   ),
-  "2019-2023 raw DoD"
+  "2019-2024 raw DoD"
 )
 
 patch_file <- first_existing(
   c(
-    file.path(DIRS["vectors"], "depositional_patches_2019_2023.gpkg"),
-    file.path(DIRS["vectors"], "depositional_patches_2019_2023.gpkg"),
-    file.path(OUTPUT_DIR, "vectors", "depositional_patches_2019_2023.gpkg")
+    file.path(DIRS["vectors"], "depositional_patches_2019_2024.gpkg"),
+    file.path(DIRS["vectors"], "depositional_patches_2019_2024.gpkg"),
+    file.path(OUTPUT_DIR, "vectors", "depositional_patches_2019_2024.gpkg")
   ),
   "Depositional-patch vector"
 )
@@ -64,7 +64,7 @@ message("Boundary: ", boundary_file)
 # 2. Read data -----------------------------------------------------------------
 dod <- rast(dod_file)
 if (nlyr(dod) != 1L) stop("The DoD input must contain exactly one raster layer.")
-names(dod) <- "2019-2023"
+names(dod) <- "2019-2024"
 
 patches <- st_read(patch_file, quiet = TRUE)
 boundary <- st_read(boundary_file, quiet = TRUE)
@@ -268,7 +268,7 @@ p <- ggplot() +
     pad_y = grid::unit(3, "mm")
   ) +
   labs(
-    title = "Bathymetric change, 2019-2023",
+    title = "Bathymetric change, 2019-2024",
     subtitle = "Official boundary and two dominant depositional fields",
     x = NULL,
     y = NULL
@@ -303,7 +303,7 @@ p <- ggplot() +
 # 7. Export --------------------------------------------------------------------
 output_stem <- file.path(
   out_dir,
-  "Figure_4_bathymetric_change_2019_2023_dominant_fields_v2"
+  "Figure_4_bathymetric_change_2019_2024_dominant_fields_v2"
 )
 
 save_common <- list(
@@ -339,7 +339,7 @@ record <- c(
   paste0("DoD: ", dod_file),
   paste0("Patches: ", patch_file),
   paste0("Boundary: ", boundary_file),
-  "Displayed survey interval: 2019-2023",
+  "Displayed survey interval: 2019-2024",
   "DoD convention: later DEM minus earlier DEM",
   "Positive values: accumulation/seabed raising; mapped in red",
   "Negative values: seabed lowering; mapped in blue",

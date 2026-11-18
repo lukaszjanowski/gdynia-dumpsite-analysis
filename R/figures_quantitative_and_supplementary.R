@@ -86,10 +86,10 @@ PRIMARY_THRESHOLD <- 0.35
 PRIMARY_MIN_AREA <- 500
 
 # Survey labels used in the current analysis. Change here only if the manuscript
-# ultimately reports the acquisition year as 2023 rather than 2023.
+# ultimately reports the acquisition year as 2024 rather than 2024.
 YEAR_EARLY <- "2011"
 YEAR_MIDDLE <- "2019"
-YEAR_LATE <- "2023"
+YEAR_LATE <- "2024"
 
 # ---- Helpers -----------------------------------------------------------------
 first_existing <- function(paths, label, required = TRUE) {
@@ -181,7 +181,7 @@ vector_dir <- if (!is.na(config_vectors)) config_vectors else file.path(OUTPUT_D
 
 primary_file <- first_existing(c(
   file.path(table_dir, "boundary_primary_exact_summary.csv"),
-  file.path(table_dir, "patch_zone_exact_summary_2019_2023.csv")
+  file.path(table_dir, "patch_zone_exact_summary_2019_2024.csv")
 ), "Primary exact boundary summary")
 
 sensitivity_file <- first_existing(c(
@@ -193,10 +193,10 @@ coverage_file <- first_existing(c(
 ), "Patch-filter coverage summary")
 
 crossing_file <- first_existing(c(
-  file.path(table_dir, "boundary_crossing_patches_exact_2019_2023.csv"),
+  file.path(table_dir, "boundary_crossing_patches_exact_2019_2024.csv"),
   file.path(table_dir, "boundary_crossing_patch_details.csv"),
-  file.path(table_dir, "boundary_crossing_details_2019_2023.csv"),
-  file.path(table_dir, "patch_zone_parts_2019_2023.csv")
+  file.path(table_dir, "boundary_crossing_details_2019_2024.csv"),
+  file.path(table_dir, "patch_zone_parts_2019_2024.csv")
 ), "Boundary-crossing patch details", required = FALSE)
 
 volume_file <- first_existing(c(
@@ -205,16 +205,16 @@ volume_file <- first_existing(c(
 
 # Prefer explicitly named outputs, then use constrained search.
 dod_file <- first_existing(c(
-  file.path(raster_dir, "DoD_2019_2023_raw.tif"),
-  file.path(raster_dir, "DoD_2019_2023.tif"),
-  file.path(raster_dir, "dod_2019_2023.tif"),
-  file.path(raster_dir, "Gdynia_DoD_2019_2023.tif")
-), "2019–2023 DoD raster", required = FALSE)
-if (is.na(dod_file)) dod_file <- find_one(OUTPUT_DIR, c("dod", "2019", "2023", "\\.tif$"), "2019–2023 DoD raster", FALSE)
+  file.path(raster_dir, "DoD_2019_2024_raw.tif"),
+  file.path(raster_dir, "DoD_2019_2024.tif"),
+  file.path(raster_dir, "dod_2019_2024.tif"),
+  file.path(raster_dir, "Gdynia_DoD_2019_2024.tif")
+), "2019–2024 DoD raster", required = FALSE)
+if (is.na(dod_file)) dod_file <- find_one(OUTPUT_DIR, c("dod", "2019", "2024", "\\.tif$"), "2019–2024 DoD raster", FALSE)
 
 patch_vector_file <- first_existing(c(
-  file.path(vector_dir, "depositional_patches_2019_2023.gpkg"),
-  file.path(vector_dir, "depositional_patch_zone_parts_2019_2023.gpkg")
+  file.path(vector_dir, "depositional_patches_2019_2024.gpkg"),
+  file.path(vector_dir, "depositional_patch_zone_parts_2019_2024.gpkg")
 ), "Depositional patch vector", required = FALSE)
 
 boundary_candidates <- file.path(PROJECT_ROOT, "SHP", "DUMPSITE_VECTOR.shp")

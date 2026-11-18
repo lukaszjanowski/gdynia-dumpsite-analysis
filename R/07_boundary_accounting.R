@@ -11,14 +11,14 @@ source(
 dod <- terra::rast(
   file.path(
     DIRS["rasters"],
-    "DoD_2019_2023_raw.tif"
+    "DoD_2019_2024_raw.tif"
   )
 )[[1]]
 
 patch_id <- terra::rast(
   file.path(
     DIRS["rasters"],
-    "depositional_patch_ids_2019_2023.tif"
+    "depositional_patch_ids_2019_2024.tif"
   )
 )[[1]]
 
@@ -132,7 +132,7 @@ data.table::fwrite(
   patch_zone_exact,
   file.path(
     DIRS["tables"],
-    "depositional_patch_zone_exact_2019_2023.csv"
+    "depositional_patch_zone_exact_2019_2024.csv"
   )
 )
 
@@ -187,7 +187,7 @@ data.table::fwrite(
   zone_exact,
   file.path(
     DIRS["tables"],
-    "depositional_zone_exact_summary_2019_2023.csv"
+    "depositional_zone_exact_summary_2019_2024.csv"
   )
 )
 
@@ -218,7 +218,7 @@ data.table::fwrite(
   crossing_details,
   file.path(
     DIRS["tables"],
-    "boundary_crossing_patches_exact_2019_2023.csv"
+    "boundary_crossing_patches_exact_2019_2024.csv"
   )
 )
 

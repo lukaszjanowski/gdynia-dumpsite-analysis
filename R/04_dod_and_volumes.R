@@ -1,5 +1,5 @@
 source("00_config.R", encoding = "UTF-8")
-dems<-rast(file.path(DIRS['rasters'],"Gdynia_DEM_2011_2019_2023_harmonized.tif"))
+dems<-rast(file.path(DIRS['rasters'],"Gdynia_DEM_2011_2019_2024_harmonized.tif"))
 dump_f<-file.path(DIRS['vectors'],"dumpsite.gpkg"); dumpsite<-if(file.exists(dump_f)) vect(dump_f) else NULL
 cell_area<-prod(res(dems))
 summary_one<-function(dod,pair,lod,zone="full"){
@@ -27,7 +27,7 @@ process_pair<-function(i,j,pair){
  writeRaster(cls,file.path(DIRS['rasters'],paste0(names(cls),".tif")),overwrite=TRUE,datatype="INT1S",gdal=c("COMPRESS=DEFLATE","TILED=YES"))
  out
 }
-res<-rbind(process_pair(1,2,"2011_2019"),process_pair(2,3,"2019_2023"),process_pair(1,3,"2011_2023"))
+res<-rbind(process_pair(1,2,"2011_2019"),process_pair(2,3,"2019_2024"),process_pair(1,3,"2011_2024"))
 fwrite(res,file.path(DIRS['tables'],"dod_volume_summary_all_lod.csv"))
 # official comparison for the two main intervals
 

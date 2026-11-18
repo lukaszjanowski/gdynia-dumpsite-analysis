@@ -465,7 +465,7 @@ final_plot <- panel_a + panel_b +
 # 10. Export -------------------------------------------------------------------
 output_stem <- file.path(
   out_dir,
-  "Figure_1_study_area_Gdynia_2011_2019_2023_two_panel_compact_v8"
+  "Figure_1_study_area_Gdynia_2011_2019_2024_two_panel_compact_v8"
 )
 
 save_common <- list(

@@ -1,6 +1,6 @@
 # ==============================================================================
 # Gdynia dumpsite analysis
-# Harmonisation and vertical co-registration of 2011, 2019 and 2023 DEMs
+# Harmonisation and vertical co-registration of 2011, 2019 and 2024 DEMs
 # ==============================================================================
 
 
@@ -34,7 +34,7 @@ paths <- readRDS(paths_file)
 required_dem_names <- c(
   "dem2011",
   "dem2019",
-  "dem2023"
+  "dem2024"
 )
 
 missing_dem_names <- setdiff(
@@ -176,8 +176,8 @@ d19_original <- read_dem(
 )
 
 d24_original <- read_dem(
-  paths$dem2023,
-  "DEM_2023"
+  paths$dem2024,
+  "DEM_2024"
 )
 
 
@@ -245,7 +245,7 @@ d19 <- align_dem(
 
 d24 <- align_dem(
   d24_original,
-  "DEM_2023"
+  "DEM_2024"
 )
 
 
@@ -405,7 +405,7 @@ dem_stack <- c(
 names(dem_stack) <- c(
   "DEM_2011",
   "DEM_2019",
-  "DEM_2023_raw"
+  "DEM_2024_raw"
 )
 
 common_mask <- (
@@ -446,7 +446,7 @@ common <- terra::mask(
 names(common) <- c(
   "DEM_2011",
   "DEM_2019",
-  "DEM_2023_raw"
+  "DEM_2024_raw"
 )
 
 valid_cell_count <- terra::global(
@@ -488,7 +488,7 @@ message(
 
 uncorrected_file <- file.path(
   DIRS["rasters"],
-  "Gdynia_DEM_2011_2019_2023_aligned_uncorrected.tif"
+  "Gdynia_DEM_2011_2019_2024_aligned_uncorrected.tif"
 )
 
 terra::writeRaster(
@@ -697,58 +697,58 @@ residual_2011_2019 <- calculate_shift(
 )
 
 
-# 16. Estimate the 2019-2023 offset --------------------------------------------
+# 16. Estimate the 2019-2024 offset --------------------------------------------
 
-# The corrected 2019 DEM must be used as the reference for the 2023 correction.
+# The corrected 2019 DEM must be used as the reference for the 2024 correction.
 
-shift_2019_2023 <- calculate_shift(
+shift_2019_2024 <- calculate_shift(
   dem_2019_corrected,
   common[[3]],
   stable,
-  "2019-2023_before_correction"
+  "2019-2024_before_correction"
 )
 
 message(
-  "2019-2023 median vertical offset: ",
+  "2019-2024 median vertical offset: ",
   round(
-    shift_2019_2023$median_shift,
+    shift_2019_2024$median_shift,
     4
   ),
   " m"
 )
 
 
-# 17. Correct the 2023 DEM ------------------------------------------------------
+# 17. Correct the 2024 DEM ------------------------------------------------------
 
 if (COREG_APPLY_VERTICAL) {
 
-  dem_2023_corrected <- (
+  dem_2024_corrected <- (
     common[[3]] -
-    shift_2019_2023$median_shift
+    shift_2019_2024$median_shift
   )
 
-  names(dem_2023_corrected) <- "DEM_2023"
+  names(dem_2024_corrected) <- "DEM_2024"
 
 } else {
 
-  dem_2023_corrected <- common[[3]]
+  dem_2024_corrected <- common[[3]]
 
-  names(dem_2023_corrected) <- "DEM_2023"
+  names(dem_2024_corrected) <- "DEM_2024"
 
   warning(
-    "The 2023 vertical correction was not applied because ",
+    "The 2024 vertical correction was not applied because ",
     "COREG_APPLY_VERTICAL is FALSE."
   )
 }
 
 
-# 18. Recalculate the 2019-2023 residuals --------------------------------------
+# 18. Recalculate the 2019-2024 residuals --------------------------------------
 
-residual_2019_2023 <- calculate_shift(
+residual_2019_2024 <- calculate_shift(
   dem_2019_corrected,
-  dem_2023_corrected,
+  dem_2024_corrected,
   stable,
-  "2019-2023_after_correction"
+  "2019-2024_after_correction"
 )
 
 
@@ -758,8 +758,8 @@ coregistration_diagnostics <- data.table::rbindlist(
   list(
     shift_2011_2019,
     residual_2011_2019,
-    shift_2019_2023,
-    residual_2019_2023
+    shift_2019_2024,
+    residual_2019_2024
   ),
   use.names = TRUE,
   fill = TRUE
@@ -781,18 +781,18 @@ data.table::fwrite(
 harmonised <- c(
   common[[1]],
   dem_2019_corrected,
-  dem_2023_corrected
+  dem_2024_corrected
 )
 
 names(harmonised) <- c(
   "DEM_2011",
   "DEM_2019",
-  "DEM_2023"
+  "DEM_2024"
 )
 
 harmonised_file <- file.path(
   DIRS["rasters"],
-  "Gdynia_DEM_2011_2019_2023_harmonized.tif"
+  "Gdynia_DEM_2011_2019_2024_harmonized.tif"
 )
 
 terra::writeRaster(
@@ -810,7 +810,7 @@ terra::writeRaster(
 
 common_mask_file <- file.path(
   DIRS["rasters"],
-  "Gdynia_common_coverage_2011_2019_2023.tif"
+  "Gdynia_common_coverage_2011_2019_2024.tif"
 )
 
 terra::writeRaster(

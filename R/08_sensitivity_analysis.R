@@ -1,6 +1,6 @@
 # ==============================================================================
 # 08_sensitivity_analysis.R
-# Exact cell-based sensitivity analysis for the 2019-2023 depositional footprint
+# Exact cell-based sensitivity analysis for the 2019-2024 depositional footprint
 # ==============================================================================
 
 source("00_config.R", encoding = "UTF-8")
@@ -11,7 +11,7 @@ CONNECT_DIRECTIONS <- CFG$analysis$connectivity_directions
 PRIMARY_THRESHOLD_M <- CFG$analysis$primary_positive_threshold_m
 PRIMARY_MIN_AREA_M2 <- CFG$analysis$primary_min_patch_area_m2
 
-f_dod <- file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif")
+f_dod <- file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif")
 f_off <- DUMPSITE_VECTOR
 f_buf <- BUFFER_VECTOR
 

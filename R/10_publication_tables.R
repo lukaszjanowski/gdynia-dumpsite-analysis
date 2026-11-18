@@ -7,11 +7,11 @@ source("00_config.R", encoding="UTF-8")
 req <- c(
   file.path(DIRS["tables"], "dod_volume_summary_all_lod.csv"),
   file.path(DIRS["tables"], "vertical_offset_diagnostics.csv"),
-  file.path(DIRS["tables"], "dominant_depositional_fields_2019_2023.csv"),
+  file.path(DIRS["tables"], "dominant_depositional_fields_2019_2024.csv"),
   file.path(DIRS["tables"], "boundary_primary_exact_summary.csv"),
-  file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2023_harmonized.tif"),
+  file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2024_harmonized.tif"),
   file.path(DIRS["rasters"], "DoD_2011_2019_raw.tif"),
-  file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif")
+  file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif")
 )
 miss <- req[!file.exists(req)]; if(length(miss)) stop("Missing required files:\n", paste(miss,collapse="\n"))
 
@@ -158,8 +158,8 @@ data.table::fwrite(
 )
 fwrite(t1, file.path(DIRS["tables"], "Table_1_coregistration.csv"))
 
-# Table 2: principal DoD metrics. 0.20 m for both, plus conservative 0.35 m for 2019-2023.
-t2 <- dodsum[(pair=="2011_2019" & lod_m==0.20) | (pair=="2019_2023" & lod_m %in% c(0.20,0.35))]
+# Table 2: principal DoD metrics. 0.20 m for both, plus conservative 0.35 m for 2019-2024.
+t2 <- dodsum[(pair=="2011_2019" & lod_m==0.20) | (pair=="2019_2024" & lod_m %in% c(0.20,0.35))]
 t2 <- t2[zone %in% c("inside_dumpsite","outside_dumpsite","full_common_coverage")]
 fwrite(t2, file.path(DIRS["tables"], "Table_2_DoD_principal_results.csv"))
 
@@ -170,7 +170,7 @@ fwrite(boundary, file.path(DIRS["tables"], "Table_3_boundary_crossing.csv"))
 fwrite(fields, file.path(DIRS["tables"], "Table_4_dominant_fields.csv"))
 
 # Figure 1: DEM time series.
-dems <- rast(req[5]); names(dems) <- c("2011","2019","2023")
+dems <- rast(req[5]); names(dems) <- c("2011","2019","2024")
 q_dem <- as.numeric(global(dems[[1]], function(x,...) quantile(x,c(.02,.98),na.rm=TRUE,names=FALSE), na.rm=TRUE)[1,])
 png(file.path(DIRS["figures"], "Figure_1_DEM_time_series.png"), width=4200, height=1600, res=300)
 par(mfrow=c(1,3), mar=c(3,3,3,5))
@@ -183,11 +183,11 @@ d11 <- rast(req[6]); d24 <- rast(req[7])
 png(file.path(DIRS["figures"], "Figure_2_DoD_intervals.png"), width=3400, height=1700, res=300)
 par(mfrow=c(1,2),mar=c(3,3,3,5))
 plot(d11, range=c(-1,1.5), col=hcl.colors(101,"Blue-Red 3",rev=TRUE), main="2011-2019", axes=TRUE); lines(off,lwd=2)
-plot(d24, range=c(-1,3), col=hcl.colors(101,"Blue-Red 3",rev=TRUE), main="2019-2023", axes=TRUE); lines(off,lwd=2)
+plot(d24, range=c(-1,3), col=hcl.colors(101,"Blue-Red 3",rev=TRUE), main="2019-2024", axes=TRUE); lines(off,lwd=2)
 dev.off()
 
 # Figure 3: clean dominant-field and boundary map without all 88 labels.
-pfile <- file.path(DIRS["vectors"], "depositional_patches_2019_2023.gpkg")
+pfile <- file.path(DIRS["vectors"], "depositional_patches_2019_2024.gpkg")
 if(file.exists(pfile)) {
   pp <- vect(pfile)
   dom <- pp[pp$dominant_field %in% TRUE,]
@@ -208,8 +208,8 @@ ggsave(file.path(DIRS["figures"], "Figure_4_sensitivity.png"),p,width=7.5,height
 
 # Captions text file.
 captions <- c(
-"Figure 1. Harmonised bathymetric DEMs for 2011, 2019, and 2023 on a common 1 m grid.",
-"Figure 2. Co-registered DEMs of Difference for 2011-2019 and 2019-2023. Positive values denote seabed raising.",
+"Figure 1. Harmonised bathymetric DEMs for 2011, 2019, and 2024 on a common 1 m grid.",
+"Figure 2. Co-registered DEMs of Difference for 2011-2019 and 2019-2024. Positive values denote seabed raising.",
 "Figure 3. Conservative depositional patches (DoD > 0.35 m; area >= 500 m2), the two dominant fields, official boundary, and 200 m buffer.",
 "Figure 4. Sensitivity of positive-volume estimates to the DoD threshold for patches >= 500 m2."
 )

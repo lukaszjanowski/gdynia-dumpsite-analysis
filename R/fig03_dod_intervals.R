@@ -3,7 +3,7 @@
 # Figure 3: co-registered DEMs of Difference
 # Positive values = seabed raising (red)
 # Negative values = seabed lowering (blue)
-# Intervals: 2011-2019 and 2019-2023
+# Intervals: 2011-2019 and 2019-2024
 # ==============================================================================
 
 source("00_config.R", encoding = "UTF-8")
@@ -34,13 +34,13 @@ dod_2011_2019_file <- first_existing(
   "2011-2019 raw DoD"
 )
 
-dod_2019_2023_file <- first_existing(
+dod_2019_2024_file <- first_existing(
   c(
-    file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif"),
-    file.path(DIRS["rasters"], "DoD_2019_2023_raw.tif"),
-    file.path(OUTPUT_DIR, "rasters", "DoD_2019_2023_raw.tif")
+    file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif"),
+    file.path(DIRS["rasters"], "DoD_2019_2024_raw.tif"),
+    file.path(OUTPUT_DIR, "rasters", "DoD_2019_2024_raw.tif")
   ),
-  "2019-2023 raw DoD"
+  "2019-2024 raw DoD"
 )
 
 boundary_file <- first_existing(
@@ -60,12 +60,12 @@ out_dir <- fig_dir
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 message("DoD 2011-2019: ", dod_2011_2019_file)
-message("DoD 2019-2023: ", dod_2019_2023_file)
+message("DoD 2019-2024: ", dod_2019_2024_file)
 message("Official boundary: ", boundary_file)
 
 # 2. Read and align rasters -----------------------------------------------------
 dod_11_19 <- rast(dod_2011_2019_file)
-dod_19_23 <- rast(dod_2019_2023_file)
+dod_19_23 <- rast(dod_2019_2024_file)
 
 if (nlyr(dod_11_19) != 1L || nlyr(dod_19_23) != 1L) {
   stop("Each DoD input must contain exactly one raster layer.")
@@ -73,12 +73,12 @@ if (nlyr(dod_11_19) != 1L || nlyr(dod_19_23) != 1L) {
 
 # Match the second interval to the first interval if grid metadata differ.
 if (!compareGeom(dod_11_19, dod_19_23, stopOnError = FALSE)) {
-  message("Aligning 2019-2023 DoD to the 2011-2019 grid...")
+  message("Aligning 2019-2024 DoD to the 2011-2019 grid...")
   dod_19_23 <- project(dod_19_23, dod_11_19, method = "bilinear")
 }
 
 names(dod_11_19) <- "2011-2019"
-names(dod_19_23) <- "2019-2023"
+names(dod_19_23) <- "2019-2024"
 
 # Use the common analytical footprint in both panels.
 common_mask <- !is.na(dod_11_19) & !is.na(dod_19_23)
@@ -302,7 +302,7 @@ final_plot <- p1 + p2 +
 # 8. Export --------------------------------------------------------------------
 output_stem <- file.path(
   out_dir,
-  "Figure_3_DoD_intervals_2011_2019_2023_final"
+  "Figure_3_DoD_intervals_2011_2019_2024_final"
 )
 
 save_common <- list(
@@ -332,7 +332,7 @@ write.csv(
 record <- c(
   paste0("Generated: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
   paste0("2011-2019 DoD: ", dod_2011_2019_file),
-  paste0("2019-2023 DoD: ", dod_2019_2023_file),
+  paste0("2019-2024 DoD: ", dod_2019_2024_file),
   paste0("Official boundary: ", boundary_file),
   "DoD convention: later DEM minus earlier DEM",
   "Positive values: seabed raising; mapped in red",

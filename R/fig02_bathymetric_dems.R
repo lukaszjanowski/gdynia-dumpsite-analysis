@@ -1,7 +1,7 @@
 # ==============================================================================
 # 06e_figure2_bathymetric_DEMs.R
 # Figure 2: bathymetric DEMs with illuminated relief
-# Survey years: 2011, 2019 and 2023
+# Survey years: 2011, 2019 and 2024
 # ==============================================================================
 
 source("00_config.R", encoding = "UTF-8")
@@ -26,8 +26,8 @@ first_existing <- function(paths, label) {
 
 dem_file <- first_existing(
   c(
-    file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2023_harmonized.tif"),
-    file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2023_harmonized.tif")
+    file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2024_harmonized.tif"),
+    file.path(DIRS["rasters"], "Gdynia_DEM_2011_2019_2024_harmonized.tif")
   ),
   "Harmonised three-layer DEM"
 )
@@ -54,7 +54,7 @@ message("Official boundary: ", boundary_file)
 # 2. Read and harmonise display domain -----------------------------------------
 dems <- rast(dem_file)
 if (nlyr(dems) != 3L) stop("The DEM file must contain exactly three layers.")
-names(dems) <- c("2011", "2019", "2023")
+names(dems) <- c("2011", "2019", "2024")
 
 # Use only the common valid footprint so all panels have identical data coverage.
 common_mask <- !is.na(dems[[1]]) & !is.na(dems[[2]]) & !is.na(dems[[3]])
@@ -362,7 +362,7 @@ if (!requireNamespace("cowplot", quietly = TRUE)) {
 
 output_stem <- file.path(
   out_dir,
-  "Figure_2_bathymetric_DEMs_2011_2019_2023"
+  "Figure_2_bathymetric_DEMs_2011_2019_2024"
 )
 
 save_common <- list(
@@ -387,7 +387,7 @@ record <- c(
   paste0("Generated: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
   paste0("DEM stack: ", dem_file),
   paste0("Boundary: ", boundary_file),
-  "Displayed survey years: 2011, 2019, 2023",
+  "Displayed survey years: 2011, 2019, 2024",
   paste0("Shared colour limits: ", paste(round(z_limits, 3), collapse = " to "), " m"),
   paste0("Vertical exaggeration: ", VERTICAL_EXAGGERATION),
   paste0("Light altitude: ", LIGHT_ALTITUDE, " degrees"),

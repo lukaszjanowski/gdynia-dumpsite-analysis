@@ -6,14 +6,14 @@ project:
 files:
   dem2011: "data/raw/DEM_2011.tif"
   dem2019: "data/raw/DEM_2019.tif"
-  dem2023: "data/raw/DEM_2023.tif"
+  dem2024: "data/raw/DEM_2024.tif"
   dumpsite: "data/raw/DUMPSITE_VECTOR.gpkg"
   stable: "data/raw/STABLE_VECTOR.gpkg"
   plb220005: "data/raw/PLB220005.gpkg"
   plh220032: "data/raw/PLH220032.gpkg"
   landscape_park: "data/raw/Nadmorski_Park_Krajobrazowy.gpkg"
   coastline: "data/raw/coastline.gpkg"
-  bbs2023: "data/raw/BBS_2023.tif"
+  bbs2024: "data/raw/BBS_2024.tif"
   sss2011: "data/raw/SSS_2011.tif"
   sss2019: "data/raw/SSS_2019.tif"
 analysis:

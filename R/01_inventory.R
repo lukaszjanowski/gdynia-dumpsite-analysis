@@ -1,7 +1,7 @@
 source("00_config.R", encoding = "UTF-8")
 
 F <- CFG$files
-required_names <- c("dem2011", "dem2019", "dem2023", "dumpsite", "stable")
+required_names <- c("dem2011", "dem2019", "dem2024", "dumpsite", "stable")
 
 paths <- lapply(F, function(x) {
   if (grepl("^([A-Za-z]:[/\\\\]|/)", x)) x else file.path(ROOT, x)

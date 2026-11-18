@@ -1,6 +1,6 @@
 # ==============================================================================
 # STEP 04b
-# Object-based analysis of depositional patches, 2019-2023
+# Object-based analysis of depositional patches, 2019-2024
 #
 # The script:
 #   1. segments positive DoD patches using DoD > 0.35 m;
@@ -13,9 +13,9 @@
 #   5. saves CSV, GeoPackage, labelled raster and diagnostic figures.
 #
 # Required existing products:
-#   rasters/DoD_2019_2023_raw.tif
-#   rasters/Gdynia_2023_morphometry.tif
-#   rasters/BBS_2023_aligned_interpretive.tif
+#   rasters/DoD_2019_2024_raw.tif
+#   rasters/Gdynia_2024_morphometry.tif
+#   rasters/BBS_2024_aligned_interpretive.tif
 #   SHP/DUMPSITE_VECTOR.shp
 #   outputs/vectors/dumpsite_buffer_200m.gpkg
 # ============================================================================== 
@@ -32,17 +32,17 @@ buffer_file <- BUFFER_VECTOR
 
 dod_file <- file.path(
   DIRS["rasters"],
-  "DoD_2019_2023_raw.tif"
+  "DoD_2019_2024_raw.tif"
 )
 
 morphometry_file <- file.path(
   DIRS["rasters"],
-  "Gdynia_2023_morphometry.tif"
+  "Gdynia_2024_morphometry.tif"
 )
 
 bbs_file <- file.path(
   DIRS["rasters"],
-  "BBS_2023_aligned_interpretive.tif"
+  "BBS_2024_aligned_interpretive.tif"
 )
 
 required_files <- c(
@@ -67,12 +67,12 @@ message("Minimum patch area: ", MIN_PATCH_AREA_M2, " m2")
 
 # 2. Read rasters ---------------------------------------------------------------
 dod <- terra::rast(dod_file)[[1]]
-names(dod) <- "DoD_2019_2023"
+names(dod) <- "DoD_2019_2024"
 
 morphometry <- terra::rast(morphometry_file)
 
 expected_morphometry <- c(
-  "DEM_2023",
+  "DEM_2024",
   "slope_deg",
   "TRI",
   "roughness",
@@ -247,7 +247,7 @@ names(patch_id) <- "patch_id"
 
 terra::writeRaster(
   patch_id,
-  file.path(DIRS["rasters"], "depositional_patch_ids_2019_2023.tif"),
+  file.path(DIRS["rasters"], "depositional_patch_ids_2019_2024.tif"),
   overwrite = TRUE,
   datatype = "INT4S",
   gdal = c("COMPRESS=DEFLATE", "TILED=YES")
@@ -450,14 +450,14 @@ patch_polygons <- merge(
 # 11. Save outputs --------------------------------------------------------------
 patch_csv <- file.path(
   DIRS["tables"],
-  "depositional_patches_2019_2023.csv"
+  "depositional_patches_2019_2024.csv"
 )
 
 data.table::fwrite(patch_table, patch_csv)
 
 patch_gpkg <- file.path(
   DIRS["vectors"],
-  "depositional_patches_2019_2023.gpkg"
+  "depositional_patches_2019_2024.gpkg"
 )
 
 terra::writeVector(
@@ -482,7 +482,7 @@ setorder(zone_summary, -total_positive_volume_m3)
 
 data.table::fwrite(
   zone_summary,
-  file.path(DIRS["tables"], "depositional_patch_zone_summary_2019_2023.csv")
+  file.path(DIRS["tables"], "depositional_patch_zone_summary_2019_2024.csv")
 )
 
 # Compact table for the two dominant fields.
@@ -510,13 +510,13 @@ dominant_fields <- patch_table[
 
 data.table::fwrite(
   dominant_fields,
-  file.path(DIRS["tables"], "dominant_depositional_fields_2019_2023.csv")
+  file.path(DIRS["tables"], "dominant_depositional_fields_2019_2024.csv")
 )
 
 # 12. Diagnostic maps -----------------------------------------------------------
 map_file <- file.path(
   DIRS["figures"],
-  "depositional_patches_2019_2023.png"
+  "depositional_patches_2019_2024.png"
 )
 
 png(map_file, width = 3000, height = 2400, res = 300)
@@ -526,7 +526,7 @@ plot(
   range = c(-1, 3),
   col = hcl.colors(101, "Blue-Red 3", rev = TRUE),
   main = paste0(
-    "Depositional patches 2019-2023 (DoD > ",
+    "Depositional patches 2019-2024 (DoD > ",
     PATCH_THRESHOLD_M,
     " m; area >= ",
     MIN_PATCH_AREA_M2,
@@ -549,7 +549,7 @@ dev.off()
 
 bbs_map_file <- file.path(
   DIRS["figures"],
-  "BBS_2023_with_depositional_patches.png"
+  "BBS_2024_with_depositional_patches.png"
 )
 
 # terra::quantile() expects a multi-layer raster in some versions.
@@ -583,7 +583,7 @@ plot(
   bbs,
   range = bbs_limits,
   col = hcl.colors(100, "Grays"),
-  main = "Relative MBES backscatter and depositional patches, 2023"
+  main = "Relative MBES backscatter and depositional patches, 2024"
 )
 lines(official, col = "red", lwd = 2.5)
 lines(patch_polygons, col = "cyan", lwd = 1.4)
@@ -616,8 +616,8 @@ message("")
 message("Step 04b completed successfully.")
 message("Patch table: ", patch_csv)
 message("Patch polygons: ", patch_gpkg)
-message("Zone summary: depositional_patch_zone_summary_2019_2023.csv")
-message("Dominant fields: dominant_depositional_fields_2019_2023.csv")
+message("Zone summary: depositional_patch_zone_summary_2019_2024.csv")
+message("Dominant fields: dominant_depositional_fields_2019_2024.csv")
 message("Map: ", map_file)
 message("BBS map: ", bbs_map_file)
 message("")
